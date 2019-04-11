@@ -4,6 +4,7 @@ import {
   RabbitMqSingletonConnectionFactory,
   RabbitMqPublisher,
   RabbitMqSubscriber,
+  RabbitMqConsumer,
   IRabbitMqConnectionConfig,
 } from 'rabbitmq-pub-sub';
 import { each } from 'async';
@@ -14,6 +15,7 @@ export interface PubSubRabbitMQBusOptions {
   config?: IRabbitMqConnectionConfig;
   connectionListener?: (err: Error) => void;
   triggerTransform?: TriggerTransform;
+  durable?: boolean;
   logger?: Logger;
 }
 
@@ -32,13 +34,14 @@ export class AmqpPubSub implements PubSubEngine {
 
     this.triggerTransform = options.triggerTransform || (trigger => trigger as string);
     const config = options.config || { host: '127.0.0.1', port: 5672 };
+    const useConsumer = !!options.durable;
     const { logger } = options;
 
     this.logger = createChildLogger(logger, 'AmqpPubSub');
 
     const factory = new RabbitMqSingletonConnectionFactory(logger, config);
 
-    this.consumer = new RabbitMqSubscriber(logger, factory);
+    this.consumer = useConsumer ? new RabbitMqConsumer(logger, factory) : new RabbitMqSubscriber(logger, factory);
     this.producer = new RabbitMqPublisher(logger, factory);
 
     this.subscriptionMap = {};
@@ -133,4 +136,3 @@ export class AmqpPubSub implements PubSubEngine {
 export type Path = Array<string | number>;
 export type Trigger = string | Path;
 export type TriggerTransform = (trigger: Trigger, channelOptions?: Object) => string;
-
